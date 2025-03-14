@@ -1,0 +1,64 @@
+Initial System Setup and Dependencies
+
+# Update system
+sudo apt-get update
+sudo apt-get upgrade -y
+
+# Install essential packages
+sudo apt-get install -y \
+    build-essential \
+    cmake \
+    clang \
+    llvm \
+    libclang-dev \
+    libelf-dev \
+    libbpf-dev \
+    bpftrace \
+    linux-headers-$(uname -r) \
+    pkg-config \
+    flex \
+    bison \
+    git \
+    zlib1g-dev \
+    libzip-dev \
+    python3-pip \
+    gcc-multilib \
+    libbpf0
+
+# Install LLVM 18 (latest stable)
+wget https://apt.llvm.org/llvm.sh
+chmod +x llvm.sh
+sudo ./llvm.sh 18
+
+# Install additional LLVM components
+sudo apt-get install -y \
+    llvm-18 \
+    llvm-18-dev \
+    libllvm18 \
+    clang-18 \
+    libclang-18-dev \
+    libclang-common-18-dev \
+    libclang1-18 \
+    llvm-18-runtime
+
+
+Configure System Settings for eBPF
+
+# Enable eBPF settings
+sudo sysctl -w kernel.bpf_syscall=1
+sudo sysctl -w kernel.perf_event_paranoid=1
+sudo sysctl -w kernel.kptr_restrict=0
+sudo sysctl -w net.core.bpf_jit_enable=1
+sudo sysctl -w net.core.bpf_jit_harden=1
+
+# Make settings persistent
+echo "kernel.bpf_syscall=1" | sudo tee -a /etc/sysctl.d/99-bpf.conf
+echo "kernel.perf_event_paranoid=1" | sudo tee -a /etc/sysctl.d/99-bpf.conf
+echo "kernel.kptr_restrict=0" | sudo tee -a /etc/sysctl.d/99-bpf.conf
+echo "net.core.bpf_jit_enable=1" | sudo tee -a /etc/sysctl.d/99-bpf.conf
+echo "net.core.bpf_jit_harden=1" | sudo tee -a /etc/sysctl.d/99-bpf.conf
+
+# Mount BPF filesystem
+sudo mkdir -p /sys/fs/bpf
+sudo mount -t bpf bpf /sys/fs/bpf/
+
