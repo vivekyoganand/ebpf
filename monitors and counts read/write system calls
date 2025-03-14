@@ -1,0 +1,62 @@
+
+#!/usr/bin/python3
+from bcc import BPF
+from time import sleep
+import ctypes
+
+# BPF program with maps
+program = """
+#include <uapi/linux/ptrace.h>
+#include <linux/sched.h>
+
+struct key_t {
+    u32 key;
+};
+
+BPF_HASH(syscall_count, struct key_t, u64);
+
+int trace_count(void *ctx) {
+    struct key_t key = {.key = 0};
+    u64 initval = 1;
+    u64 *value;
+
+    value = syscall_count.lookup_or_init(&key, &initval);
+    if (value) {
+        __sync_fetch_and_add(value, 1);
+    }
+
+    return 0;
+}
+"""
+
+print("Loading BPF program...")
+try:
+    # Load BPF program
+    b = BPF(text=program)
+
+    # Attach multiple kprobes
+    b.attach_kprobe(event=b.get_syscall_fnname("read"), fn_name="trace_count")
+    b.attach_kprobe(event=b.get_syscall_fnname("write"), fn_name="trace_count")
+
+    print("Successfully loaded! Counting read/write syscalls...")
+    print("Ctrl+C to exit")
+
+    # Define key structure
+    class Key(ctypes.Structure):
+        _fields_ = [("key", ctypes.c_uint32)]
+
+    # Print statistics
+    while True:
+        try:
+            key = Key(key=0)
+            count = b["syscall_count"][key].value
+            print(f"Total syscalls counted: {count}")
+            sleep(1)
+        except KeyboardInterrupt:
+            break
+        except Exception as e:
+            print(f"Error reading counter: {e}")
+            break
+
+except Exception as e:
+    print(f"Error loading program: {e}")
