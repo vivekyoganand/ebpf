@@ -1,0 +1,33 @@
+
+#!/usr/bin/python3
+from bcc import BPF
+
+# Simple BPF program
+program = """
+#include <uapi/linux/ptrace.h>
+#include <linux/sched.h>
+
+int trace_exec(void *ctx) {
+    char comm[16];
+    bpf_get_current_comm(&comm, sizeof(comm));
+    bpf_trace_printk("Process: %s\\n", comm);
+    return 0;
+}
+"""
+
+print("Loading BPF program...")
+try:
+    # Load BPF program
+    b = BPF(text=program)
+
+    # Attach kprobe
+    b.attach_kprobe(event=b.get_syscall_fnname("execve"), fn_name="trace_exec")
+
+    print("Successfully loaded! Tracing execve syscalls... Hit Ctrl+C to end.")
+    print("Try running some commands in another terminal to see them traced...")
+
+    # Print trace output
+    b.trace_print()
+
+except Exception as e:
+    print(f"Error: {e}")
